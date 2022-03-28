@@ -96,7 +96,18 @@ class FasterRCNNTrainer(nn.Module):
 
         features = self.faster_rcnn.extractor(imgs)
 
-        # rpn
+        """
+        rpn模块接受backbone提取的feature和img_size.
+        返回：rpn_locs: bounding box Regression权重
+        rpn_scores: bounding box 分类
+        rois: proposal_layer 输出，对应原始输入大小的图像尺寸的位置锚框
+        anchor：基于backbone输出的feature map像素大小的anchor数量 math：(channel, feature_map_h * feature_map_w, H, W)
+        
+        其中anchor用于生成rpn部分ground truth的loc和label
+        rpn_locs, rpn_scores用于计算rpn部分的loss和混淆矩阵
+        
+        rois用于输入head计算ROI pooling
+        """
         rpn_locs, rpn_scores, rois, roi_indices, anchor = \
             self.faster_rcnn.rpn(features, img_size, scale)
 
@@ -131,6 +142,7 @@ class FasterRCNNTrainer(nn.Module):
         gt_rpn_label = at.totensor(gt_rpn_label).long()
         gt_rpn_loc = at.totensor(gt_rpn_loc)
 
+        """rpn部分进行的bounding box regression"""
         # rpn loc loss
         rpn_loc_loss = _fast_rcnn_loc_loss(
             rpn_loc,
@@ -139,6 +151,7 @@ class FasterRCNNTrainer(nn.Module):
             self.rpn_sigma)
 
         # NOTE: default value of ignore_index is -100 ...
+        """计算rpn_cls_loss"""
         rpn_cls_loss = F.cross_entropy(rpn_score, gt_rpn_label.cuda(), ignore_index=-1)
         _gt_rpn_label = gt_rpn_label[gt_rpn_label > -1]
         _rpn_score = at.tonumpy(rpn_score)[at.tonumpy(gt_rpn_label) > -1]
@@ -152,12 +165,13 @@ class FasterRCNNTrainer(nn.Module):
         gt_roi_label = at.totensor(gt_roi_label).long()
         gt_roi_loc = at.totensor(gt_roi_loc)
 
+        """roi部分进行的bounding box regression"""
         roi_loc_loss = _fast_rcnn_loc_loss(
             roi_loc.contiguous(),
             gt_roi_loc,
             gt_roi_label.data,
             self.roi_sigma)
-
+        """计算roi_cls_loss"""
         roi_cls_loss = nn.CrossEntropyLoss()(roi_score, gt_roi_label.cuda())
 
         self.roi_cm.add(at.totensor(roi_score, False), gt_roi_label.data.long())
