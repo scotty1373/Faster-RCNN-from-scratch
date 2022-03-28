@@ -33,10 +33,15 @@ class ProposalTargetCreator(object):
                  pos_ratio=0.25, pos_iou_thresh=0.5,
                  neg_iou_thresh_hi=0.5, neg_iou_thresh_lo=0.0
                  ):
+        # 处理样本不均衡问题，选择sample个样本进行划分
         self.n_sample = n_sample
+        # 正样本占比
         self.pos_ratio = pos_ratio
+        # 正样本iou阈值
         self.pos_iou_thresh = pos_iou_thresh
+        # 负样本iou阈值上限
         self.neg_iou_thresh_hi = neg_iou_thresh_hi
+        # 负样本iou阈值下限
         self.neg_iou_thresh_lo = neg_iou_thresh_lo  # NOTE:default 0.1 in py-faster-rcnn
 
     def __call__(self, roi, bbox, label,
@@ -92,7 +97,14 @@ class ProposalTargetCreator(object):
 
         roi = np.concatenate((roi, bbox), axis=0)
 
+        # 正样本数量
         pos_roi_per_image = np.round(self.n_sample * self.pos_ratio)
+        '''
+        按bbox维度dim=0位置shape生成iou
+        如果是一个bbox，iou形状为(n_roi, 1)
+        两个bbox，则iou生成shape为(n_roi, 2)
+        由于广播操作计算的iou在dim1上的顺序对应bbox顺序，同时对应label顺序
+        '''
         iou = bbox_iou(roi, bbox)
         gt_assignment = iou.argmax(axis=1)
         max_iou = iou.max(axis=1)
@@ -100,30 +112,37 @@ class ProposalTargetCreator(object):
         # The label with value 0 is the background.
         gt_roi_label = label[gt_assignment] + 1
 
+        # 选择iou大于前景阈值的索引
         # Select foreground RoIs as those with >= pos_iou_thresh IoU.
         pos_index = np.where(max_iou >= self.pos_iou_thresh)[0]
+        # 选择最小数量的正向样本用于后续sample样本
         pos_roi_per_this_image = int(min(pos_roi_per_image, pos_index.size))
         if pos_index.size > 0:
             pos_index = np.random.choice(
                 pos_index, size=pos_roi_per_this_image, replace=False)
 
+        # 选择背景，iou区间位于[neg_iou_thresh_lo, neg_iou_thresh_hi]
         # Select background RoIs as those within
-        # [neg_iou_thresh_lo, neg_iou_thresh_hi).
+        # [neg_iou_thresh_lo, neg_iou_thresh_hi].
         neg_index = np.where((max_iou < self.neg_iou_thresh_hi) &
                              (max_iou >= self.neg_iou_thresh_lo))[0]
+        # 确定背景roi数量
         neg_roi_per_this_image = self.n_sample - pos_roi_per_this_image
         neg_roi_per_this_image = int(min(neg_roi_per_this_image,
                                          neg_index.size))
         if neg_index.size > 0:
             neg_index = np.random.choice(
                 neg_index, size=neg_roi_per_this_image, replace=False)
-
+        
+        # 同时保留前景背景索引
         # The indices that we're selecting (both positive and negative).
         keep_index = np.append(pos_index, neg_index)
         gt_roi_label = gt_roi_label[keep_index]
+        # 将背景roi标签置为0
         gt_roi_label[pos_roi_per_this_image:] = 0  # negative labels --> 0
         sample_roi = roi[keep_index]
 
+        # 将对应的roi于真实边界框映射到边界框回归权重上
         # Compute offsets and scales to match sampled RoIs to the GTs.
         gt_roi_loc = bbox2loc(sample_roi, bbox[gt_assignment[keep_index]])
         gt_roi_loc = ((gt_roi_loc - np.array(loc_normalize_mean, np.float32)
@@ -199,6 +218,7 @@ class AnchorTargetCreator(object):
         img_H, img_W = img_size
 
         n_anchor = len(anchor)
+        # 计算在图像内部的锚框索引
         inside_index = _get_inside_index(anchor, img_H, img_W)
         anchor = anchor[inside_index]
         argmax_ious, label = self._create_label(
@@ -281,8 +301,8 @@ def _get_inside_index(anchor, H, W):
     index_inside = np.where(
         (anchor[:, 0] >= 0) &
         (anchor[:, 1] >= 0) &
-        (anchor[:, 2] <= H) &
-        (anchor[:, 3] <= W)
+        (anchor[:, 2] <= W) &
+        (anchor[:, 3] <= H)
     )[0]
     return index_inside
 
@@ -390,11 +410,12 @@ class ProposalCreator:
             n_pre_nms = self.n_test_pre_nms
             n_post_nms = self.n_test_post_nms
 
+        # 将rpn_loc中回归权重应用到anchor中，得到基于原图大小的bbox
         # Convert anchors into proposal via bbox transformations.
-        # roi = loc2bbox(anchor, loc)
         roi = loc2bbox(anchor, loc)
 
         # Clip predicted boxes to image.
+        # 将roi计算出来的预测框裁剪到图像大小
         roi[:, slice(0, 4, 2)] = np.clip(
             roi[:, slice(0, 4, 2)], 0, img_size[0])
         roi[:, slice(1, 4, 2)] = np.clip(
@@ -404,6 +425,7 @@ class ProposalCreator:
         min_size = self.min_size * scale
         hs = roi[:, 2] - roi[:, 0]
         ws = roi[:, 3] - roi[:, 1]
+        # 去除小目标
         keep = np.where((hs >= min_size) & (ws >= min_size))[0]
         roi = roi[keep, :]
         score = score[keep]

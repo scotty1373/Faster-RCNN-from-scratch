@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw
 import matplotlib.patches as patche
 import matplotlib.pyplot as plt
 
+
+# rpn bbox回归权值映射到实际bbox中
 def loc2bbox(src_bbox, loc):
     """Decode bounding boxes from bounding box offsets and scales.
 
@@ -55,15 +57,15 @@ def loc2bbox(src_bbox, loc):
 
     src_bbox = src_bbox.astype(src_bbox.dtype, copy=False)
 
-    src_height = src_bbox[:, 2] - src_bbox[:, 0]
-    src_width = src_bbox[:, 3] - src_bbox[:, 1]
-    src_ctr_y = src_bbox[:, 0] + 0.5 * src_height
-    src_ctr_x = src_bbox[:, 1] + 0.5 * src_width
+    src_height = src_bbox[:, 3] - src_bbox[:, 1]
+    src_width = src_bbox[:, 2] - src_bbox[:, 0]
+    src_ctr_y = src_bbox[:, 1] + 0.5 * src_height
+    src_ctr_x = src_bbox[:, 0] + 0.5 * src_width
 
-    dy = loc[:, 0::4]
-    dx = loc[:, 1::4]
-    dh = loc[:, 2::4]
-    dw = loc[:, 3::4]
+    dy = loc[:, 1::4]
+    dx = loc[:, 0::4]
+    dh = loc[:, 3::4]
+    dw = loc[:, 2::4]
 
     ctr_y = dy * src_height[:, xp.newaxis] + src_ctr_y[:, xp.newaxis]
     ctr_x = dx * src_width[:, xp.newaxis] + src_ctr_x[:, xp.newaxis]
@@ -71,14 +73,15 @@ def loc2bbox(src_bbox, loc):
     w = xp.exp(dw) * src_width[:, xp.newaxis]
 
     dst_bbox = xp.zeros(loc.shape, dtype=loc.dtype)
-    dst_bbox[:, 0::4] = ctr_y - 0.5 * h
-    dst_bbox[:, 1::4] = ctr_x - 0.5 * w
-    dst_bbox[:, 2::4] = ctr_y + 0.5 * h
-    dst_bbox[:, 3::4] = ctr_x + 0.5 * w
+    dst_bbox[:, 1::4] = ctr_y - 0.5 * h
+    dst_bbox[:, 0::4] = ctr_x - 0.5 * w
+    dst_bbox[:, 3::4] = ctr_y + 0.5 * h
+    dst_bbox[:, 2::4] = ctr_x + 0.5 * w
 
     return dst_bbox
 
 
+# 实际bbox映射到边界框回归
 def bbox2loc(src_bbox, dst_bbox):
     """Encodes the source and the destination bounding boxes to "loc".
 
@@ -121,15 +124,15 @@ def bbox2loc(src_bbox, dst_bbox):
 
     """
 
-    height = src_bbox[:, 2] - src_bbox[:, 0]
-    width = src_bbox[:, 3] - src_bbox[:, 1]
-    ctr_y = src_bbox[:, 0] + 0.5 * height
-    ctr_x = src_bbox[:, 1] + 0.5 * width
+    height = src_bbox[:, 3] - src_bbox[:, 1]
+    width = src_bbox[:, 2] - src_bbox[:, 0]
+    ctr_y = src_bbox[:, 1] + 0.5 * height
+    ctr_x = src_bbox[:, 0] + 0.5 * width
 
-    base_height = dst_bbox[:, 2] - dst_bbox[:, 0]
-    base_width = dst_bbox[:, 3] - dst_bbox[:, 1]
-    base_ctr_y = dst_bbox[:, 0] + 0.5 * base_height
-    base_ctr_x = dst_bbox[:, 1] + 0.5 * base_width
+    base_height = dst_bbox[:, 3] - dst_bbox[:, 1]
+    base_width = dst_bbox[:, 2] - dst_bbox[:, 0]
+    base_ctr_y = dst_bbox[:, 1] + 0.5 * base_height
+    base_ctr_x = dst_bbox[:, 0] + 0.5 * base_width
 
     eps = xp.finfo(height.dtype).eps
     height = xp.maximum(height, eps)
@@ -140,7 +143,7 @@ def bbox2loc(src_bbox, dst_bbox):
     dh = xp.log(base_height / height)
     dw = xp.log(base_width / width)
 
-    loc = xp.vstack((dy, dx, dh, dw)).transpose()
+    loc = xp.vstack((dx, dy, dw, dh)).transpose()
     return loc
 
 
@@ -174,15 +177,18 @@ def bbox_iou(bbox_a, bbox_b):
     if bbox_a.shape[1] != 4 or bbox_b.shape[1] != 4:
         raise IndexError
 
+    # 为了两数组可以广播操作，对bbox_a在axis=1增加一个维度,这个维度用于放置广播计算多出的数组
     # top left
     tl = xp.maximum(bbox_a[:, None, :2], bbox_b[:, :2])
     # bottom right
     br = xp.minimum(bbox_a[:, None, 2:], bbox_b[:, 2:])
 
+    # (tl < br).all(axis=2) 用于判断锚框是否相交
     area_i = xp.prod(br - tl, axis=2) * (tl < br).all(axis=2)
     area_a = xp.prod(bbox_a[:, 2:] - bbox_a[:, :2], axis=1)
     area_b = xp.prod(bbox_b[:, 2:] - bbox_b[:, :2], axis=1)
     return area_i / (area_a[:, None] + area_b - area_i)
+
 
 def generate_anchor_base(base_size=16, ratios=[0.5, 1, 2],
                          anchor_scales=[8, 16, 32]):
@@ -238,7 +244,7 @@ def generate_anchor_base(base_size=16, ratios=[0.5, 1, 2],
     return anchor_base[:, [1, 0, 3, 2]]
 
 
-# anchor yxyx
+# anchor xyxy
 def plot_anchor_matplot(anchor_box):
     axis = plt.figure()
     ax = axis.add_subplot(1, 1, 1)

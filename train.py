@@ -73,10 +73,11 @@ def train(**kwargs):
     lr_ = opt.lr
     for epoch in range(opt.epoch):
         trainer.reset_meters()
-        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(dataloader)):
+        dataloader_tqdm = tqdm(enumerate(dataloader))
+        for ii, (img, bbox_, label_, scale) in dataloader_tqdm:
             scale = at.scalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
-            trainer.train_step(img, bbox, label, scale)
+            iter_loss = trainer.train_step(img, bbox, label, scale)
 
             if (ii + 1) % opt.plot_every == 0:
                 if os.path.exists(opt.debug_file):
@@ -104,6 +105,14 @@ def train(**kwargs):
                 trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
                 # roi confusion matrix
                 trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+                # tqdm description
+            dataloader_tqdm.set_description(f'ep: {epoch}, iter: {ii}, '
+                                            f'rpn_loss: {iter_loss[0]:.4f}, '
+                                            f'rpn_cls_loss: {iter_loss[1]:.4f}, '
+                                            f'roi_loc_loss: {iter_loss[2]:.4f}, '
+                                            f'roi_cls_loss: {iter_loss[3]:.4f}, '
+                                            f'total_loss: {iter_loss[4]:.4f}')
+
         eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
         trainer.vis.plot('test_map', eval_result['map'])
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']

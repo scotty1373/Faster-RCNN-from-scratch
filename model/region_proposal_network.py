@@ -125,12 +125,19 @@ class RegionProposalNetwork(nn.Module):
         rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()
         # 为了方便softmax计算，reshape成(C, 2, W*anchor_num, H)
         rpn_softmax_scores = F.softmax(rpn_scores.view(n, hh, ww, n_anchor, 2), dim=4)
+        # 除去背景分数
         rpn_fg_scores = rpn_softmax_scores[:, :, :, :, 1].contiguous()
         rpn_fg_scores = rpn_fg_scores.view(n, -1)
         rpn_scores = rpn_scores.view(n, -1, 2)
 
         rois = list()
         roi_indices = list()
+
+        """
+        通过rpn结构生成的anchor和rpn_loc经过proposal_layer
+        将rpn_loc生成的scale和offset应用在anchor上，得到基于原图大小的bbox
+        并通过nms初步筛选得到2000个先验框.
+        """
         for i in range(n):
             roi = self.proposal_layer(
                 rpn_locs[i].cpu().data.numpy(),
@@ -147,6 +154,11 @@ class RegionProposalNetwork(nn.Module):
 
 
 def _enumerate_shifted_anchor(anchor_base, feat_stride, height, width):
+    # 由下采样步长计算backbone输出feature map中每个
+    # 像素点对应原输入图像大小，并对feature map中的每
+    # 个像素在原图上的映射坐标xyxy进行滑窗处理，
+    # 得到hh*ww*anchor_num个锚框
+
     # Enumerate all shifted anchors:
     #
     # add A anchors (1, A, 4) to
@@ -162,8 +174,8 @@ def _enumerate_shifted_anchor(anchor_base, feat_stride, height, width):
     shift_y = xp.arange(0, height * feat_stride, feat_stride)
     shift_x = xp.arange(0, width * feat_stride, feat_stride)
     shift_x, shift_y = xp.meshgrid(shift_x, shift_y)
-    shift = xp.stack((shift_y.ravel(), shift_x.ravel(),
-                      shift_y.ravel(), shift_x.ravel()), axis=1)
+    shift = xp.stack((shift_x.ravel(), shift_y.ravel(),
+                      shift_x.ravel(), shift_y.ravel()), axis=1)
 
     A = anchor_base.shape[0]
     K = shift.shape[0]

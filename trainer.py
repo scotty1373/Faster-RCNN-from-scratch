@@ -96,6 +96,7 @@ class FasterRCNNTrainer(nn.Module):
 
         features = self.faster_rcnn.extractor(imgs)
 
+        # rpn
         rpn_locs, rpn_scores, rois, roi_indices, anchor = \
             self.faster_rcnn.rpn(features, img_size, scale)
 
@@ -129,6 +130,8 @@ class FasterRCNNTrainer(nn.Module):
             img_size)
         gt_rpn_label = at.totensor(gt_rpn_label).long()
         gt_rpn_loc = at.totensor(gt_rpn_loc)
+
+        # rpn loc loss
         rpn_loc_loss = _fast_rcnn_loc_loss(
             rpn_loc,
             gt_rpn_loc,
@@ -198,7 +201,8 @@ class FasterRCNNTrainer(nn.Module):
             timestr = time.strftime('%m%d%H%M')
             save_path = 'checkpoints/fasterrcnn_%s' % timestr
             for k_, v_ in kwargs.items():
-                save_path += '_%s' % v_
+                save_path += f'{k_}_{v_}'
+            save_path += '.pth'
 
         save_dir = os.path.dirname(save_path)
         if not os.path.exists(save_dir):

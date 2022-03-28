@@ -14,10 +14,11 @@ from utils.config import opt
 
 
 def nograd(f):
-    def new_f(*args,**kwargs):
+    def new_f(*args, **kwargs):
         with t.no_grad():
            return f(*args, **kwargs)
     return new_f
+
 
 class FasterRCNN(nn.Module):
     """Base class for Faster R-CNN.
@@ -288,6 +289,7 @@ class FasterRCNN(nn.Module):
         for param_group in self.optimizer.param_groups:
             param_group['lr'] *= decay
         return self.optimizer
+
 
 if __name__ == '__main__':
     model = FasterRCNN()

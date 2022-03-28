@@ -84,6 +84,7 @@ class FasterRCNNVGG16(FasterRCNN):
         )
 
 
+# 将head输出为基于rpn中选取的region进行分类
 class VGG16RoIHead(nn.Module):
     """Faster R-CNN Head for VGG-16 based implementation.
     This class is used as a head for Faster R-CNN.
@@ -136,11 +137,13 @@ class VGG16RoIHead(nn.Module):
         roi_indices = at.totensor(roi_indices).float()
         rois = at.totensor(rois).float()
         indices_and_rois = t.cat([roi_indices[:, None], rois], dim=1)
-        # NOTE: important: yx->xy
-        xy_indices_and_rois = indices_and_rois[:, [0, 2, 1, 4, 3]]
+        # NOTE: Don't need yx->xy anymore
+        xy_indices_and_rois = indices_and_rois
         indices_and_rois = xy_indices_and_rois.contiguous()
 
+        # x: shape: (batch, channel, feature_width, feature_height)
         pool = self.roi(x, indices_and_rois)
+        # pool: shape: (batch, channel * roi_kernel * roi_kernel)
         pool = pool.view(pool.size(0), -1)
         fc7 = self.classifier(pool)
         roi_cls_locs = self.cls_loc(fc7)
