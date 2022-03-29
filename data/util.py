@@ -38,6 +38,9 @@ def read_image(path, dtype=np.float32, color=True):
         return img[np.newaxis]
     else:
         # transpose (H, W, C) -> (C, H, W)
+        """
+        图像横坐标对应H，纵坐标对应W
+        """
         return img.transpose((2, 0, 1))
 
 
@@ -47,7 +50,7 @@ def resize_bbox(bbox, in_size, out_size):
     The bounding boxes are expected to be packed into a two dimensional
     tensor of shape :math:`(R, 4)`, where :math:`R` is the number of
     bounding boxes in the image. The second axis represents attributes of
-    the bounding box. They are :math:`(y_{min}, x_{min}, y_{max}, x_{max})`,
+    the bounding box. They are :math:`(x_{min}, y_{min}, x_{max}, y_{max})`,
     where the four attributes are coordinates of the top left and the
     bottom right vertices.
 
@@ -67,10 +70,10 @@ def resize_bbox(bbox, in_size, out_size):
     bbox = bbox.copy()
     y_scale = float(out_size[0]) / in_size[0]
     x_scale = float(out_size[1]) / in_size[1]
-    bbox[:, 0] = y_scale * bbox[:, 0]
-    bbox[:, 2] = y_scale * bbox[:, 2]
-    bbox[:, 1] = x_scale * bbox[:, 1]
-    bbox[:, 3] = x_scale * bbox[:, 3]
+    bbox[:, 1] = y_scale * bbox[:, 1]
+    bbox[:, 3] = y_scale * bbox[:, 3]
+    bbox[:, 0] = x_scale * bbox[:, 0]
+    bbox[:, 2] = x_scale * bbox[:, 2]
     return bbox
 
 
@@ -80,7 +83,7 @@ def flip_bbox(bbox, size, y_flip=False, x_flip=False):
     The bounding boxes are expected to be packed into a two dimensional
     tensor of shape :math:`(R, 4)`, where :math:`R` is the number of
     bounding boxes in the image. The second axis represents attributes of
-    the bounding box. They are :math:`(y_{min}, x_{min}, y_{max}, x_{max})`,
+    the bounding box. They are :math:`(x_{min}, y_{min}, x_{max}, y_{max})`,
     where the four attributes are coordinates of the top left and the
     bottom right vertices.
 
@@ -102,15 +105,15 @@ def flip_bbox(bbox, size, y_flip=False, x_flip=False):
     H, W = size
     bbox = bbox.copy()
     if y_flip:
-        y_max = H - bbox[:, 0]
-        y_min = H - bbox[:, 2]
-        bbox[:, 0] = y_min
-        bbox[:, 2] = y_max
+        y_max = H - bbox[:, 1]
+        y_min = H - bbox[:, 3]
+        bbox[:, 1] = y_min
+        bbox[:, 3] = y_max
     if x_flip:
-        x_max = W - bbox[:, 1]
-        x_min = W - bbox[:, 3]
-        bbox[:, 1] = x_min
-        bbox[:, 3] = x_max
+        x_max = W - bbox[:, 0]
+        x_min = W - bbox[:, 2]
+        bbox[:, 0] = x_min
+        bbox[:, 2] = x_max
     return bbox
 
 
@@ -231,8 +234,8 @@ def translate_bbox(bbox, y_offset=0, x_offset=0):
     """
 
     out_bbox = bbox.copy()
-    out_bbox[:, :2] += (y_offset, x_offset)
-    out_bbox[:, 2:] += (y_offset, x_offset)
+    out_bbox[:, :2] += (x_offset, y_offset)
+    out_bbox[:, 2:] += (x_offset, y_offset)
 
     return out_bbox
 

@@ -104,14 +104,14 @@ class RegionProposalNetwork(nn.Module):
 
         """
         # 特征图尺寸
-        n, _, hh, ww = x.shape
+        n, _, ww, hh = x.shape
         # 按feature map像素映射回原始输入图像，并对特征图每个像素叠加9个anchor
         # anchor: math: (feature_hh * feature_ww * anchor_num, 4)
         anchor = _enumerate_shifted_anchor(
             np.array(self.anchor_base),
-            self.feat_stride, hh, ww)
+            self.feat_stride, ww, hh)
 
-        n_anchor = anchor.shape[0] // (hh * ww)
+        n_anchor = anchor.shape[0] // (ww * hh)
         h = F.relu(self.conv1(x))
 
         # rpn预测偏移量:  math:(C, 4*anchor_num, W, H)
@@ -124,7 +124,7 @@ class RegionProposalNetwork(nn.Module):
         rpn_scores = self.rpn_cls(h)
         rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()
         # 为了方便softmax计算，reshape成(C, 2, W*anchor_num, H)
-        rpn_softmax_scores = F.softmax(rpn_scores.view(n, hh, ww, n_anchor, 2), dim=4)
+        rpn_softmax_scores = F.softmax(rpn_scores.view(n, ww, hh, n_anchor, 2), dim=4)
         # 除去背景分数
         rpn_fg_scores = rpn_softmax_scores[:, :, :, :, 1].contiguous()
         rpn_fg_scores = rpn_fg_scores.view(n, -1)
@@ -153,7 +153,7 @@ class RegionProposalNetwork(nn.Module):
         return rpn_locs, rpn_scores, rois, roi_indices, anchor
 
 
-def _enumerate_shifted_anchor(anchor_base, feat_stride, height, width):
+def _enumerate_shifted_anchor(anchor_base, feat_stride, width, height):
     # 由下采样步长计算backbone输出feature map中每个
     # 像素点对应原输入图像大小，并对feature map中的每
     # 个像素在原图上的映射坐标xyxy进行滑窗处理，

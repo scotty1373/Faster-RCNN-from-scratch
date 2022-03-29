@@ -113,7 +113,7 @@ class VOCBboxDataset:
             # subtract 1 to make pixel indexes 0-based
             bbox.append([
                 int(bndbox_anno.find(tag).text) - 1
-                for tag in ('ymin', 'xmin', 'ymax', 'xmax')])
+                for tag in ('xmin', 'ymin', 'xmax', 'ymax')])
             name = obj.find('name').text.lower().strip()
             label.append(VOC_BBOX_LABEL_NAMES.index(name))
         bbox = np.stack(bbox).astype(np.float32)

@@ -75,7 +75,6 @@ def preprocess(img, min_size=600, max_size=1000):
 
 
 class Transform(object):
-
     def __init__(self, min_size=600, max_size=1000):
         self.min_size = min_size
         self.max_size = max_size
@@ -95,6 +94,13 @@ class Transform(object):
             bbox, (o_H, o_W), x_flip=params['x_flip'])
 
         return img, bbox, label, scale
+
+
+"""
+    pillow图像从Image格式转到numpy格式长宽位置交换
+    pillow: img.size: (W, H)
+    numpy: img.shape: (H, W, C)
+"""
 
 
 class Dataset:

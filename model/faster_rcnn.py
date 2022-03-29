@@ -70,8 +70,8 @@ class FasterRCNN(nn.Module):
     """
 
     def __init__(self, extractor, rpn, head,
-                loc_normalize_mean = (0., 0., 0., 0.),
-                loc_normalize_std = (0.1, 0.1, 0.2, 0.2)
+                loc_normalize_mean=(0., 0., 0., 0.),
+                loc_normalize_std=(0.1, 0.1, 0.2, 0.2)
     ):
         super(FasterRCNN, self).__init__()
         self.extractor = extractor
@@ -172,7 +172,7 @@ class FasterRCNN(nn.Module):
             mask = prob_l > self.score_thresh
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
-            keep = nms(cls_bbox_l, prob_l,self.nms_thresh)
+            keep = nms(cls_bbox_l, prob_l, self.nms_thresh)
             # import ipdb;ipdb.set_trace()
             # keep = cp.asnumpy(keep)
             bbox.append(cls_bbox_l[keep].cpu().numpy())
@@ -185,7 +185,7 @@ class FasterRCNN(nn.Module):
         return bbox, label, score
 
     @nograd
-    def predict(self, imgs,sizes=None,visualize=False):
+    def predict(self, imgs, sizes=None, visualize=False):
         """Detect objects from images.
 
         This method predicts objects for each image.

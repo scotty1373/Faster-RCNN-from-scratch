@@ -2,10 +2,13 @@ import numpy as np
 import numpy as xp
 
 import six
+import torch
 from six import __init__
 from PIL import Image, ImageDraw
 import matplotlib.patches as patche
 import matplotlib.pyplot as plt
+from data.dataset import inverse_normalize
+from visdom import Visdom
 
 
 # rpn bbox回归权值映射到实际bbox中
@@ -62,15 +65,15 @@ def loc2bbox(src_bbox, loc):
     src_ctr_y = src_bbox[:, 1] + 0.5 * src_height
     src_ctr_x = src_bbox[:, 0] + 0.5 * src_width
 
-    dy = loc[:, 1::4]
     dx = loc[:, 0::4]
-    dh = loc[:, 3::4]
+    dy = loc[:, 1::4]
     dw = loc[:, 2::4]
+    dh = loc[:, 3::4]
 
-    ctr_y = dy * src_height[:, xp.newaxis] + src_ctr_y[:, xp.newaxis]
-    ctr_x = dx * src_width[:, xp.newaxis] + src_ctr_x[:, xp.newaxis]
-    h = xp.exp(dh) * src_height[:, xp.newaxis]
-    w = xp.exp(dw) * src_width[:, xp.newaxis]
+    ctr_y = dy * src_height[:, None] + src_ctr_y[:, None]
+    ctr_x = dx * src_width[:, None] + src_ctr_x[:, None]
+    h = xp.exp(dh) * src_height[:, None]
+    w = xp.exp(dw) * src_width[:, None]
 
     dst_bbox = xp.zeros(loc.shape, dtype=loc.dtype)
     dst_bbox[:, 1::4] = ctr_y - 0.5 * h
@@ -140,6 +143,8 @@ def bbox2loc(src_bbox, dst_bbox):
 
     dy = (base_ctr_y - ctr_y) / height
     dx = (base_ctr_x - ctr_x) / width
+    if height.any() < 0:
+        raise IndexError
     dh = xp.log(base_height / height)
     dw = xp.log(base_width / width)
 
@@ -245,12 +250,24 @@ def generate_anchor_base(base_size=16, ratios=[0.5, 1, 2],
 
 
 # anchor xyxy
-def plot_anchor_matplot(anchor_box):
+def plot_anchor_matplot(anchor_box, img, *, normal=False):
+    if isinstance(img, torch.Tensor):
+        img = img.cpu().numpy()
+    if img.ndim > 3:
+        img = img.squeeze(0)
+    if isinstance(anchor_box, torch.Tensor):
+        anchor_box = anchor_box.cpu().numpy()
+    if anchor_box.ndim > 2:
+        anchor_box = anchor_box.squeeze(0)
+    img = img.transpose((2, 1, 0))
+
     axis = plt.figure()
     ax = axis.add_subplot(1, 1, 1)
+    if normal:
+        ax.imshow(np.uint8(inverse_normalize(img)))
+    else:
+        ax.imshow(img)
     color = ['blue', 'green', 'red']
-    # anchor_box[:, [0, 2]] /= 400
-    # anchor_box[:, [1, 3]] /= 400
 
     for idx, bbox in enumerate(anchor_box):
         leftTop_x, leftTop_y = bbox[0], bbox[1]
@@ -263,6 +280,7 @@ def plot_anchor_matplot(anchor_box):
     ax.spines['bottom'].set_position(('data', 0))
     ax.spines['left'].set_position(('data', 0))
     # plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.2)
+    # Visdom.matplot(axis)
     plt.show()
 
 

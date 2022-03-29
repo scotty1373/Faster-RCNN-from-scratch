@@ -21,7 +21,7 @@ import resource
 # rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 # resource.setrlimit(resource.RLIMIT_NOFILE, (8192, rlimit[1]))
 
-matplotlib.use('agg')
+# matplotlib.use('agg')
 
 
 def eval(dataloader, faster_rcnn, test_num=10000):
@@ -135,5 +135,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     import fire
-
     fire.Fire()

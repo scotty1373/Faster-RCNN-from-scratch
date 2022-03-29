@@ -423,8 +423,8 @@ class ProposalCreator:
 
         # Remove predicted boxes with either height or width < threshold.
         min_size = self.min_size * scale
-        hs = roi[:, 2] - roi[:, 0]
-        ws = roi[:, 3] - roi[:, 1]
+        hs = roi[:, 3] - roi[:, 1]
+        ws = roi[:, 2] - roi[:, 0]
         # 去除小目标
         keep = np.where((hs >= min_size) & (ws >= min_size))[0]
         roi = roi[keep, :]
