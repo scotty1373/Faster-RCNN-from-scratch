@@ -253,6 +253,7 @@ class AnchorTargetCreator(object):
         # subsample positive labels if we have too many
         n_pos = int(self.pos_ratio * self.n_sample)
         pos_index = np.where(label == 1)[0]
+        # 当正例个数多余使样本平衡个数时，随机选择多出的正例样本进行剔除
         if len(pos_index) > n_pos:
             disable_index = np.random.choice(
                 pos_index, size=(len(pos_index) - n_pos), replace=False)
@@ -261,6 +262,7 @@ class AnchorTargetCreator(object):
         # subsample negative labels if we have too many
         n_neg = self.n_sample - np.sum(label == 1)
         neg_index = np.where(label == 0)[0]
+        # 当负例个数多余样本平衡个数时，随机选择多出的负例样本进行剔除
         if len(neg_index) > n_neg:
             disable_index = np.random.choice(
                 neg_index, size=(len(neg_index) - n_neg), replace=False)

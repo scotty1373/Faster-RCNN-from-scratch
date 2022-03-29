@@ -46,8 +46,16 @@ class FasterRCNNTrainer(nn.Module):
         self.rpn_sigma = opt.rpn_sigma
         self.roi_sigma = opt.roi_sigma
 
-        # target creator create gt_bbox gt_label etc as training targets. 
+        # target creator create gt_bbox gt_label etc as training targets.
+        """用于rpn中的proposal_layer进行标注框回归"""
         self.anchor_target_creator = AnchorTargetCreator()
+        """
+        用于筛选proposal_layer输出的标注框，
+        Returns:
+        1.返回样本均衡采样的标注框；
+        2.当前采样标注框和gt_bbox的位置回归值；
+        3.当前采样标注框的标签爱女
+        """
         self.proposal_target_creator = ProposalTargetCreator()
 
         self.loc_normalize_mean = faster_rcnn.loc_normalize_mean
