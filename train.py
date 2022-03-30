@@ -102,9 +102,11 @@ def train(**kwargs):
                 trainer.vis.img('pred_img', pred_img)
 
                 # rpn confusion matrix(meter)
-                trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
+                trainer.vis.heatmap(at.totensor(trainer.rpn_cm.value(), False).float(), 'rpn_cm', final_label=False)
+                # trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
                 # roi confusion matrix
-                trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+                # trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+                trainer.vis.heatmap(at.totensor(trainer.roi_cm.value(), False).float(), 'roi_cm')
                 # tqdm description
             dataloader_tqdm.set_description(f'ep: {epoch}, iter: {ii}, '
                                             f'rpn_loss: {iter_loss[0]:.4f}, '

@@ -66,8 +66,8 @@ class FasterRCNNTrainer(nn.Module):
         self.vis = Visualizer(env=opt.env)
 
         # indicators for training status
-        self.rpn_cm = ConfusionMeter(2)
-        self.roi_cm = ConfusionMeter(21)
+        self.rpn_cm = ConfusionMeter(2, normalized=True)
+        self.roi_cm = ConfusionMeter(21, normalized=True)
         self.meters = {k: AverageValueMeter() for k in LossTuple._fields}  # average loss
 
     def forward(self, imgs, bboxes, labels, scale):

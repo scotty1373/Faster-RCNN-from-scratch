@@ -1,5 +1,6 @@
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import torch as t
@@ -175,7 +176,7 @@ class Visualizer(object):
     """
 
     def __init__(self, env='default', **kwargs):
-        self.vis = visdom.Visdom('localhost',env=env, use_incoming_socket=False, **kwargs)
+        self.vis = visdom.Visdom('localhost', env=env, use_incoming_socket=False, **kwargs)
         self._vis_kw = kwargs
 
         # e.g.('loss',23) the 23th value of loss
@@ -237,6 +238,16 @@ class Visualizer(object):
             time=time.strftime('%m%d_%H%M%S'), \
             info=info))
         self.vis.text(self.log_text, win)
+
+    def heatmap(self, mat, name, *, final_label=True):
+        if final_label:
+            labels = ['bg'] + list(VOC_BBOX_LABEL_NAMES)
+        else:
+            labels = ['bg', 'pg']
+        self.vis.heatmap(t.Tensor(mat).cpu().numpy(),
+                         win=name,
+                         opts={'columnnames': labels,
+                               'rownames': labels})
 
     def __getattr__(self, name):
         return getattr(self.vis, name)
